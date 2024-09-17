@@ -2,7 +2,7 @@
 
 from elftools.common.utils import bytes2str
 from elftools.elf.elffile import ELFFile
-from elftools.dwarf.datatype_cpp import DIE_name, describe_cpp_datatype
+from elftools.dwarf.datatype_cpp import DIE_name, parse_cpp_datatype
 from pathlib import Path
 import io, json, re, shutil, sys
 
@@ -35,6 +35,15 @@ def get_relative_subname(full_die, relative_die):
 			break
 
 	return "::".join(die1_name[common:])
+
+def describe_cpp_datatype(var_die):
+	type_desc = parse_cpp_datatype(var_die)
+	if type_desc.tag == "structure" and type_desc.name == "structure ":
+		for _ in range(len(type_desc.modifiers)):
+			type_die = type_die.get_DIE_from_attribute("DW_AT_type")
+		if "DW_AT_specification" in type_die.attributes:
+			type_desc.name = get_relative_subname(type_die.get_DIE_from_attribute("DW_AT_specification"), type_die.get_parent())
+	return str(type_desc)
 
 
 _RECURSE_FILENAMES_CACHE = {}
@@ -259,9 +268,9 @@ class FormalParameterDefinition(Definition):
 				self.name = get_relative_subname(original_die, die.get_parent())
 				self.type = None
 			else:
-				type_die = die.get_DIE_from_attribute('DW_AT_type')
+				type_die = die.get_DIE_from_attribute("DW_AT_type")
 				if type_die.tag == "DW_TAG_ptr_to_member_type":
-					containing_type_die = type_die.get_DIE_from_attribute('DW_AT_containing_type')
+					containing_type_die = type_die.get_DIE_from_attribute("DW_AT_containing_type")
 					if containing_type_die.tag == "DW_TAG_structure_type" and "DW_AT_specification" in containing_type_die.attributes:
 						ptr_prefix = get_relative_subname(containing_type_die.get_DIE_from_attribute("DW_AT_specification"), containing_type_die.get_parent())
 					else:
