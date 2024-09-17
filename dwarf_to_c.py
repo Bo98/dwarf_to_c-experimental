@@ -39,6 +39,7 @@ def get_relative_subname(full_die, relative_die):
 def describe_cpp_datatype(var_die):
 	type_desc = parse_cpp_datatype(var_die)
 	if type_desc.tag == "structure" and type_desc.name == "structure ":
+		type_die = var_die.get_DIE_from_attribute("DW_AT_type")
 		for _ in range(len(type_desc.modifiers)):
 			type_die = type_die.get_DIE_from_attribute("DW_AT_type")
 		if "DW_AT_specification" in type_die.attributes:
