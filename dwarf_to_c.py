@@ -195,14 +195,14 @@ class StructureDefinition(Definition):
 			self.name = DIE_name(die)
 		else:
 			self.name = None
-		self.inherit = None
+		self.inherits = []
 		self.declaration = safe_get_attr(die, "DW_AT_declaration", False)
 		self.accessibility = safe_get_attr(die, "DW_AT_accessibility", 0)
 		self.member = False
 		if "DW_AT_type" in die.attributes:
 			raise RuntimeError("!!!")
 
-	def set_inherit(self, die):
+	def add_inherit(self, die):
 		inherit = ""
 		if "DW_AT_accessibility" in die.attributes:
 			accessibility = die.attributes["DW_AT_accessibility"].value
@@ -216,18 +216,18 @@ class StructureDefinition(Definition):
 				case _:
 					raise RuntimeError(f"Unexpected accessibility {accessibility}")
 		inherit += describe_cpp_datatype(die)
-		self.inherit = inherit
+		self.inherits.append(inherit)
 
 	def to_source(self, file, filename, indent=""):
 		if self.toplevel and self.file != filename:
 			return
 		super().to_source(file, filename, indent)
 		if self.declaration and not self.children:
-			print(indent + f"struct {self.name if self.name else ''}{(' : ' + self.inherit) if self.inherit else ''};", file=file)
+			print(indent + f"struct {self.name if self.name else ''}{(' : ' + ', '.join(self.inherits)) if self.inherits else ''};", file=file)
 		else:
 			if self.declaration:
 				print(indent + "// Declaration", file=file)
-			print(indent + f"struct {(self.name + ' ') if self.name else ''}{(': ' + self.inherit + ' ') if self.inherit else ''}{'{'}", file=file)
+			print(indent + f"struct {(self.name + ' ') if self.name else ''}{(': ' + ', '.join(self.inherits) + ' ') if self.inherits else ''}{'{'}", file=file)
 			accessibility = -1
 			for child in self.children:
 				if (isinstance(child, UnionDefinition) or isinstance(child, StructureDefinition)) and child.member:
@@ -605,7 +605,7 @@ def process_die(die, parent=None):
 			definition = VariableDefinition(die)
 			assert_children_tags(die, [])
 		case "DW_TAG_inheritance":
-			parent.set_inherit(die)
+			parent.add_inherit(die)
 			assert_children_tags(die, [])
 		case "DW_TAG_lexical_block":
 			if die.get_parent().tag != "DW_TAG_subprogram" and die.get_parent().tag != "DW_TAG_lexical_block":
